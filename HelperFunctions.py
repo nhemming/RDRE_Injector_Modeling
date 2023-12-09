@@ -345,7 +345,7 @@ def graph_error(rmse, mae, avg_std, meta_dict):
     """
 
     sns.set_theme()
-    plt.rcParams.update({'font.size': meta_data['font_size']})
+    plt.rcParams.update({'font.size': meta_dict['font_size']})
     fig_size = meta_dict['fig_size'].split(',')
     fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
     # create error graph
