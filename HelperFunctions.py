@@ -481,7 +481,7 @@ def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     x_graph = np.array(sample_data[var_vars_df['name'].iloc[0]])
     ax1.plot(x_graph, output_data_un_norm)
     ax1.fill_between(x_graph,output_data_un_norm+output_std_un_norm,output_data_un_norm-output_std_un_norm,facecolor='tab:blue', alpha=0.3, label='1 $\sigma$')
-    ax1.set_xlabel(input_norm_df['name'].iloc[0])
+    ax1.set_xlabel(var_vars_df['name'].iloc[0])
     #ax1.set_ylabel(input_norm_df['name'].iloc[1])
     ax1.set_ylabel(str(col_name))
     ax1.legend()
