@@ -1,0 +1,19 @@
+constant_vars:
+  var00: 
+    name: Gap-to-Length Ratio
+    value: 0.1
+vary_vars:
+  var00: 
+    name: Mass Flux [lbm/s-in2]
+    max: 0.5
+    min: 0.05
+  var01: 
+    name: Equivalence Ratio
+    max: 2.0
+    min: 0.5
+meta_data:
+  trial_num: 0
+  file_name: myModel2DSlice.png
+  fig_size: 14,8
+  model_num: 3
+  sample_density: 20

@@ -4,6 +4,7 @@ Scripts will leverage these functions.
 """
 
 # native packages
+import copy
 from collections import OrderedDict
 import os
 
@@ -14,7 +15,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import Matern, RBF, RationalQuadratic, WhiteKernel
+from sklearn.gaussian_process.kernels import DotProduct, ExpSineSquared, Matern, RBF, RationalQuadratic, WhiteKernel
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import yaml
 
@@ -52,6 +53,10 @@ def parse_kriging_data_info(input_file_name):
 
     # make folders
     create_folders(meta_data)
+
+    # save normalization information
+    input_data_df.to_csv(os.path.join('Trial_'+str(meta_data['trial_num']),'input_norm_data.csv'))
+    output_data_df.to_csv(os.path.join('Trial_' + str(meta_data['trial_num']), 'output_norm_data.csv'))
 
     return df_input_norm, df_output_norm, input_data_df, output_data_df, krig_data, meta_data
 
@@ -256,7 +261,7 @@ def run_n_fold_cross_validation(x_data, y_data, kriging_hp, meta_dict):
         mae_vec[i] = mae
         avg_std[i] = np.mean(std)
 
-    print('The average RMSE over the N folds is: {0:.3f}'.format(np.mean(rmse_vec)))
+    print('The average RMSE over the N folds is: {0:.5f}'.format(np.mean(rmse_vec)))
     return rmse_vec, mae_vec, avg_std
 
 
@@ -274,19 +279,26 @@ def build_kriging_model(train_x, train_y, kriging_hp):
     # build the kernel of the Kriging model
     kernel = None
     kernel_dict = kriging_hp['kernel']
-    if kernel_dict['type'] == 'Matern':
+    if kernel_dict['type'] == 'DotProduct':
+        bounds = kernel_dict['sigma_scale_bounds'].split(',')
+        kernel = DotProduct(sigma_0=float(kernel_dict['sigma']), sigma_0_bounds=(float(bounds[0]), float(bounds[1])))
+    elif kernel_dict['type'] == 'ExpSinSquared':
+        bounds = kernel_dict['length_scale_bounds'].split(',')
+        p_bounds = kernel_dict['periodicity_scale_bounds'].split(',')
+        kernel = ExpSineSquared(length_scale=float(kernel_dict['length_scale']), periodicity=float(kernel_dict['periodicity']),
+                        length_scale_bounds=(float(bounds[0]), float(bounds[1])), periodicity_bounds=(float(p_bounds[0]), float(p_bounds[1])))
+    elif kernel_dict['type'] == 'Matern':
         bounds = kernel_dict['length_scale_bounds'].split(',')
         kernel = 1 * Matern(length_scale=float(kernel_dict['length_scale']),
                          length_scale_bounds=(float(bounds[0]), float(bounds[1])), nu=kernel_dict['nu'])
-    elif kernel_dict['type'] == 'RBF':
-        bounds = kernel_dict['length_scale_bounds'].split(',')
-        kernel = 1 * RBF(length_scale=float(kernel_dict['length_scale']), length_scale_bounds=(float(bounds[0]), float(bounds[1])))
-
     elif kernel_dict['type'] == 'RationalQuadratic':
         bounds = kernel_dict['length_scale_bounds'].split(',')
         alpha_bounds = kernel_dict['alpha_scale_bounds'].split(',')
         kernel = RationalQuadratic(length_scale=float(kernel_dict['length_scale']), alpha=float(kernel_dict['alpha']), length_scale_bounds=(float(bounds[0]), float(bounds[1])),
                           alpha_bounds=(float(alpha_bounds[0]), float(alpha_bounds[1])))
+    elif kernel_dict['type'] == 'RBF':
+        bounds = kernel_dict['length_scale_bounds'].split(',')
+        kernel = 1 * RBF(length_scale=float(kernel_dict['length_scale']), length_scale_bounds=(float(bounds[0]), float(bounds[1])))
 
     # initialize the model
     gaussian_process = GaussianProcessRegressor(kernel=kernel, alpha=float(kernel_dict['std'])
@@ -333,7 +345,8 @@ def graph_error(rmse, mae, avg_std, meta_dict):
     """
 
     sns.set_theme()
-    fig = plt.figure(0,figsize=(14,8))
+    fig_size = meta_dict['fig_size'].split(',')
+    fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
     # create error graph
     ax1 = fig.add_subplot(121)
     bar_width = 0.33
@@ -356,6 +369,195 @@ def graph_error(rmse, mae, avg_std, meta_dict):
     plt.suptitle('Error and Average Standard Deviation A Test Data Samples for N-Fold Cross Validation')
     plt.tight_layout()
     plt.savefig(os.path.join('Trial_'+str(meta_dict['trial_num']),'N_Fold_Error'+str(meta_dict['file_type'])))
+
+
+def parse_graphing_data(file_name):
+
+    # try and open the yml file
+    with open(file_name, "r") as stream:
+        try:
+            data = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    # parse graphing constraints
+    constant_vars_df, var_vars_df = parse_graph_constraints(data)
+
+    # load kriging model
+    meta_data = data['meta_data']
+    model = load_kriging_model(meta_data['trial_num'],meta_data['model_num'])
+
+    # load normalization schemes
+    input_norm_df = pd.read_csv(os.path.join('Trial_' + str(meta_data['trial_num']), 'input_norm_data.csv'))
+    output_norm_df = pd.read_csv(os.path.join('Trial_' + str(meta_data['trial_num']), 'output_norm_data.csv'))
+
+    return model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data
+
+
+def parse_graph_constraints(data):
+
+    # parse variables to hold constant
+    dict_lst = []
+    for name, value in data['constant_vars'].items():
+        tmp_dict = {'name':value['name'], 'value':value['value']}
+        dict_lst.append(tmp_dict)
+    constant_vars_df = pd.DataFrame(dict_lst)
+
+    # parse the variables that vary
+    dict_lst = []
+    for name, value in data['vary_vars'].items():
+        tmp_dict = {'name':value['name'], 'max':value['max'], 'min':value['min']}
+        dict_lst.append(tmp_dict)
+
+    if len(dict_lst) > 2:
+        raise ValueError('Only 1 or two variables are allowed to vary while graphing a model')
+
+    var_vars_df = pd.DataFrame(dict_lst)
+
+    return constant_vars_df, var_vars_df
+
+
+def load_kriging_model(trial_num, model_num):
+    return joblib.load(os.path.join('Trial_'+str(trial_num),'Model_'+str(model_num)+'.pkl'))
+
+
+def graph_model(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+
+    if len(var_vars_df) == 1:
+        graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data)
+    elif len(var_vars_df) == 2:
+        graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data)
+    else:
+        raise ValueError('Only 1 or two variables are allowed to vary while graphing a model')
+
+
+def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+
+    # create the sample data
+    x_data = np.linspace(var_vars_df['min'].iloc[0], var_vars_df['max'].iloc[0], meta_data['sample_density'])
+
+    cols = list(input_norm_df['name'])
+    data = np.zeros((len(x_data), len(cols)))
+    sample_data = pd.DataFrame(data=data, columns=cols)
+    # load in varing data
+    sample_data[var_vars_df['name'].iloc[0]] = x_data
+
+    # load in constant data
+    for index, row in constant_vars_df.iterrows():
+        sample_data[row['name']] = row['value']
+
+    # normalize the data
+    sample_data_norm = copy.deepcopy(sample_data)
+    for col_name in sample_data_norm.columns:
+        col_data = sample_data_norm[col_name]
+        max_v = float(input_norm_df[input_norm_df['name'] == col_name]['max'])
+        min_v = float(input_norm_df[input_norm_df['name'] == col_name]['min'])
+        norm_max = float(input_norm_df[input_norm_df['name'] == col_name]['norm_max'])
+        norm_min = float(input_norm_df[input_norm_df['name'] == col_name]['norm_min'])
+
+        sample_data_norm[col_name] = ((col_data - min_v) / (max_v - min_v)) * (norm_max - norm_min) + norm_min
+
+    # make predictions
+    mean, std = model.predict(sample_data_norm, return_std=True)
+
+    # un normalize output
+    col_name = list(output_norm_df['name'])[0]
+    # output_data_norm = pd.DataFrame(data=np.zeros((len(sample_data_norm),)),columns=[col_name])
+    col_data = mean
+    max_v = float(output_norm_df[output_norm_df['name'] == col_name]['max'].iloc[0])
+    min_v = float(output_norm_df[output_norm_df['name'] == col_name]['min'].iloc[0])
+    norm_max = float(output_norm_df[output_norm_df['name'] == col_name]['norm_max'].iloc[0])
+    norm_min = float(output_norm_df[output_norm_df['name'] == col_name]['norm_min'].iloc[0])
+
+    output_data_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+    col_data = std
+    output_std_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+
+    sns.set_theme()
+    fig_size = meta_data['fig_size'].split(',')
+    fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
+    ax1 = fig.add_subplot(1, 1, 1)
+    x_graph = np.array(sample_data[var_vars_df['name'].iloc[0]])
+    ax1.plot(x_graph, output_data_un_norm)
+    ax1.fill_between(x_graph,output_data_un_norm+output_std_un_norm,output_data_un_norm-output_std_un_norm,facecolor='tab:blue', alpha=0.3, label='1 $\sigma$')
+    ax1.set_xlabel(input_norm_df['name'].iloc[0])
+    #ax1.set_ylabel(input_norm_df['name'].iloc[1])
+    ax1.set_ylabel(str(col_name))
+    ax1.legend()
+    plt.tight_layout()
+    file_name = meta_data['file_name']
+    plt.savefig(os.path.join('Trial_' + str(meta_data['trial_num']), file_name))
+
+def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+
+    # create the sample data
+    x_data = np.linspace(var_vars_df['min'].iloc[0],var_vars_df['max'].iloc[0],meta_data['sample_density'])
+    y_data = np.linspace(var_vars_df['min'].iloc[1], var_vars_df['max'].iloc[1], meta_data['sample_density'])
+
+    cols = list(input_norm_df['name'])
+    data = np.zeros((len(x_data)*len(y_data),len(cols)))
+    sample_data = pd.DataFrame(data=data,columns=cols)
+    # load in varing data
+    xd, yd = np.meshgrid(x_data,y_data)
+    xd = np.reshape(xd,(len(xd[0,:])*len(xd[:,0]),))
+    yd = np.reshape(yd, (len(yd[0, :]) * len(yd[:, 0]),))
+    sample_data[var_vars_df['name'].iloc[0]] = xd
+    sample_data[var_vars_df['name'].iloc[1]] = yd
+
+    # load in constant data
+    for index, row in constant_vars_df.iterrows():
+        sample_data[row['name']] = row['value']
+
+    # normalize the data
+    sample_data_norm = copy.deepcopy(sample_data)
+    for col_name in sample_data_norm.columns:
+
+        col_data = sample_data_norm[col_name]
+        max_v = float(input_norm_df[input_norm_df['name'] == col_name]['max'])
+        min_v = float(input_norm_df[input_norm_df['name'] == col_name]['min'])
+        norm_max = float(input_norm_df[input_norm_df['name'] == col_name]['norm_max'])
+        norm_min = float(input_norm_df[input_norm_df['name'] == col_name]['norm_min'])
+
+        sample_data_norm[col_name] = ((col_data - min_v) / (max_v - min_v)) * (norm_max - norm_min) + norm_min
+
+    # make predictions
+    mean, std = model.predict(sample_data_norm, return_std=True)
+
+    # un normalize output
+    col_name = list(output_norm_df['name'])[0]
+    #output_data_norm = pd.DataFrame(data=np.zeros((len(sample_data_norm),)),columns=[col_name])
+    col_data = mean
+    max_v = float(output_norm_df[output_norm_df['name'] == col_name]['max'].iloc[0])
+    min_v = float(output_norm_df[output_norm_df['name'] == col_name]['min'].iloc[0])
+    norm_max = float(output_norm_df[output_norm_df['name'] == col_name]['norm_max'].iloc[0])
+    norm_min = float(output_norm_df[output_norm_df['name'] == col_name]['norm_min'].iloc[0])
+
+    output_data_un_norm = (col_data - norm_min)/(norm_max-norm_min)*(max_v-min_v)+min_v
+    col_data = std
+    output_std_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+
+    sns.set_theme()
+    fig_size = meta_data['fig_size'].split(',')
+    fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
+    ax1 = fig.add_subplot(1,2,1)
+    x_graph = np.array(sample_data[var_vars_df['name'].iloc[0]])
+    y_graph = np.array(sample_data[var_vars_df['name'].iloc[1]])
+    cs = ax1.tricontourf(x_graph,y_graph,output_data_un_norm,cmap='plasma')
+    plt.colorbar(cs)
+    ax1.set_xlabel(input_norm_df['name'].iloc[0])
+    ax1.set_ylabel(input_norm_df['name'].iloc[1])
+    ax1.set_title('Mean Prediction of '+str(col_name))
+
+    ax2 = fig.add_subplot(1,2,2)
+    cs = ax2.tricontourf(x_graph, y_graph, output_std_un_norm, cmap='plasma')
+    plt.colorbar(cs)
+    ax2.set_xlabel(input_norm_df['name'].iloc[0])
+    ax2.set_ylabel(input_norm_df['name'].iloc[1])
+    ax2.set_title('Standard Deviation in Model of ' + str(col_name))
+
+    plt.tight_layout()
+    file_name = meta_data['file_name']
+    plt.savefig(os.path.join('Trial_'+str(meta_data['trial_num']),file_name))
 
 
 if __name__ == '__main__':

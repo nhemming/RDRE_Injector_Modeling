@@ -1,5 +1,5 @@
 data:
-  file_name: RDRE_Data_New.csv
+  file_name: RDRE_Data.csv
   input:
     input00:
       name: Mass Flux [lbm/s-in2]
@@ -21,18 +21,43 @@ data:
 meta_data:
   trial_num: 0
   file_type: png
+  fig_size: 14,8
 model_params:
   kernel:
-    #type: RBF
-    #length_scale: 0.3
-    #length_scale_bounds: 1e-2,1e2
-    #std: 0.02
-    #n_restarts: 10
-    type: Matern
-    length_scale: 0.1
+    ## RBF kernel
+    type: RBF
+    length_scale: 0.3
     length_scale_bounds: 1e-2,1e2
-    n_restarts: 10
-    nu: 2.5 # typically 1.5 or 2.5
     std: 0.02
+    n_restarts: 10
+    ## Matern Kernel
+    #type: Matern
+    #length_scale: 0.1
+    #length_scale_bounds: 1e-2,1e2
+    #n_restarts: 10
+    #nu: 2.5 # typically 1.5 or 2.5
+    #std: 0.02
+    ## Rational Quadratic kernel
+    #type: RationalQuadratic
+    #alpha: 0.1
+    #alpha_scale_bounds: 1e-5,1e6
+    #length_scale: 0.1
+    #length_scale_bounds: 1e-2,1e2
+    #n_restarts: 10
+    #std: 0.02
+    ## Exp-Sin squared kernel
+    #type: ExpSinSquared
+    #length_scale: 0.1
+    #length_scale_bounds: 1e-2,1e2
+    #periodicity: 1.0
+    #periodicity_scale_bounds: 1e-5,1e6
+    #n_restarts: 10
+    #std: 0.02
+    ## Dot product bounds
+    #type: DotProduct
+    #sigma: 1.0
+    #sigma_scale_bounds: 1e-2,1e2
+    #n_restarts: 10
+    #std: 0.02
   n_folds: 10
   seed: 0
