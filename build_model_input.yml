@@ -1,0 +1,38 @@
+data:
+  file_name: RDRE_Data_New.csv
+  input:
+    input00:
+      name: Mass Flux [lbm/s-in2]
+      norm_max: 1
+      norm_min: 0
+    input01:
+      name: Gap-to-Length Ratio
+      norm_max: 1
+      norm_min: 0
+    input02:
+      name: Equivalence Ratio
+      norm_max: 1
+      norm_min: 0
+  output:
+    output:
+      name: Chamber Pressure [psia]
+      norm_max: 1
+      norm_min: 0
+meta_data:
+  trial_num: 0
+  file_type: png
+model_params:
+  kernel:
+    #type: RBF
+    #length_scale: 0.3
+    #length_scale_bounds: 1e-2,1e2
+    #std: 0.02
+    #n_restarts: 10
+    type: Matern
+    length_scale: 0.1
+    length_scale_bounds: 1e-2,1e2
+    n_restarts: 10
+    nu: 2.5 # typically 1.5 or 2.5
+    std: 0.02
+  n_folds: 10
+  seed: 0
