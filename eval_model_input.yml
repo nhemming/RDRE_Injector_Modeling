@@ -1,0 +1,10 @@
+data:
+  test_data_file: RDRE_Data_Test.csv
+meta_data:
+  file_name: myModelError.png
+  fig_size: 8,5
+  font_size: 20
+  model_num: 3
+  sample_density: 20
+  title: MyTitle
+  trial_num: 0

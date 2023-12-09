@@ -564,6 +564,92 @@ def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     plt.savefig(os.path.join('Trial_'+str(meta_data['trial_num']),file_name))
 
 
+def parse_eval_info(file_name):
+
+    # try and open the yml file
+    with open(file_name, "r") as stream:
+        try:
+            data = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    # load kriging model
+    meta_data = data['meta_data']
+    model = load_kriging_model(meta_data['trial_num'], meta_data['model_num'])
+
+    # load normalization schemes
+    input_norm_df = pd.read_csv(os.path.join('Trial_' + str(meta_data['trial_num']), 'input_norm_data.csv'))
+    output_norm_df = pd.read_csv(os.path.join('Trial_' + str(meta_data['trial_num']), 'output_norm_data.csv'))
+
+    # parse testing data
+    input_data_norm, output_data_norm = parse_testing_data(data['data']['test_data_file'], input_norm_df,output_norm_df)
+
+    return model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data
+
+def parse_testing_data(test_file_name, input_norm_df,output_norm_df):
+
+    # load file
+    df = pd.read_csv(test_file_name)
+
+    # normalize the data
+    input_data_norm = normalize_data(input_norm_df, df)
+    output_data_norm = normalize_data(output_norm_df, df)
+
+    return input_data_norm, output_data_norm
+
+
+def graph_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data):
+
+    mean, std = model.predict(input_data_norm, return_std=True)
+
+    # un normalize output
+    col_name = list(output_norm_df['name'])[0]
+    # output_data_norm = pd.DataFrame(data=np.zeros((len(sample_data_norm),)),columns=[col_name])
+    col_data = mean
+    max_v = float(output_norm_df[output_norm_df['name'] == col_name]['max'].iloc[0])
+    min_v = float(output_norm_df[output_norm_df['name'] == col_name]['min'].iloc[0])
+    norm_max = float(output_norm_df[output_norm_df['name'] == col_name]['norm_max'].iloc[0])
+    norm_min = float(output_norm_df[output_norm_df['name'] == col_name]['norm_min'].iloc[0])
+
+    output_data_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+    col_data = std
+    output_std_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+
+    # un normalize truth
+    col_name = list(output_norm_df['name'])[0]
+    # output_data_norm = pd.DataFrame(data=np.zeros((len(sample_data_norm),)),columns=[col_name])
+    col_data = output_data_norm[list(output_norm_df['name'])[0]]
+    max_v = float(output_norm_df[output_norm_df['name'] == col_name]['max'].iloc[0])
+    min_v = float(output_norm_df[output_norm_df['name'] == col_name]['min'].iloc[0])
+    norm_max = float(output_norm_df[output_norm_df['name'] == col_name]['norm_max'].iloc[0])
+    norm_min = float(output_norm_df[output_norm_df['name'] == col_name]['norm_min'].iloc[0])
+
+    output_data_truth = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+    col_data = std
+    output_std_truth = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
+
+
+    mae = mean_absolute_error(output_data_un_norm, output_data_truth)
+    rmse = mean_squared_error(output_data_un_norm, output_data_truth, squared=False)
+
+    print('RMSE = {:5f}\tMAE = {:5f}'.format(rmse, mae))
+
+    sns.set_theme()
+    plt.rcParams.update({'font.size': meta_data['font_size']})
+    fig_size = meta_data['fig_size'].split(',')
+    fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
+    ax1 = fig.add_subplot(1,1,1)
+    min_out = min(min(output_data_truth), min(output_data_un_norm))
+    max_out = max(min(output_data_truth), max(output_data_un_norm))
+    ax1.plot([min_out,max_out],[min_out,max_out],'--',label='Perfect Prediction')
+    ax1.plot(output_data_truth,output_data_un_norm,'o')
+    ax1.set_xlabel('Truth Value')
+    ax1.set_ylabel('Predicted Value')
+    ax1.set_title(str(output_norm_df['name'].iloc[0]))
+    plt.tight_layout()
+    file_name = meta_data['file_name']
+    plt.savefig(os.path.join('Trial_' + str(meta_data['trial_num']), file_name))
+
 if __name__ == '__main__':
 
     # Don't allow running from here
