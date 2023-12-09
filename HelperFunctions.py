@@ -367,7 +367,7 @@ def graph_error(rmse, mae, avg_std, meta_dict):
     ax2.bar(br3,avg_std,label='avg $\sigma$',width=bar_width)
     ax2.legend()
 
-    plt.suptitle('Error and Average Standard Deviation A Test Data Samples for N-Fold Cross Validation')
+    plt.suptitle('Error and Average Standard Deviation of\nTest Data Samples for N-Fold Cross Validation')
     plt.tight_layout()
     plt.savefig(os.path.join('Trial_'+str(meta_dict['trial_num']),'N_Fold_Error'+str(meta_dict['file_type'])))
 
