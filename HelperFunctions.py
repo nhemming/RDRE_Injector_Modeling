@@ -474,6 +474,7 @@ def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     output_std_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
 
     sns.set_theme()
+    plt.rcParams.update({'font.size': meta_data['font_size']})
     fig_size = meta_data['fig_size'].split(',')
     fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
     ax1 = fig.add_subplot(1, 1, 1)
@@ -484,6 +485,7 @@ def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     #ax1.set_ylabel(input_norm_df['name'].iloc[1])
     ax1.set_ylabel(str(col_name))
     ax1.legend()
+    ax1.set_title(meta_data['title'])
     plt.tight_layout()
     file_name = meta_data['file_name']
     plt.savefig(os.path.join('Trial_' + str(meta_data['trial_num']), file_name))
@@ -537,6 +539,7 @@ def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     output_std_un_norm = (col_data - norm_min) / (norm_max - norm_min) * (max_v - min_v) + min_v
 
     sns.set_theme()
+    plt.rcParams.update({'font.size': meta_data['font_size']})
     fig_size = meta_data['fig_size'].split(',')
     fig = plt.figure(0, figsize=(float(fig_size[0]), float(fig_size[1])))
     ax1 = fig.add_subplot(1,2,1)
@@ -544,15 +547,15 @@ def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     y_graph = np.array(sample_data[var_vars_df['name'].iloc[1]])
     cs = ax1.tricontourf(x_graph,y_graph,output_data_un_norm,cmap='plasma')
     plt.colorbar(cs)
-    ax1.set_xlabel(input_norm_df['name'].iloc[0])
-    ax1.set_ylabel(input_norm_df['name'].iloc[1])
+    ax1.set_xlabel(var_vars_df['name'].iloc[0])
+    ax1.set_ylabel(var_vars_df['name'].iloc[1])
     ax1.set_title('Mean Prediction of '+str(col_name))
 
     ax2 = fig.add_subplot(1,2,2)
     cs = ax2.tricontourf(x_graph, y_graph, output_std_un_norm, cmap='plasma')
     plt.colorbar(cs)
-    ax2.set_xlabel(input_norm_df['name'].iloc[0])
-    ax2.set_ylabel(input_norm_df['name'].iloc[1])
+    ax2.set_xlabel(var_vars_df['name'].iloc[0])
+    ax2.set_ylabel(var_vars_df['name'].iloc[1])
     ax2.set_title('Standard Deviation in Model of ' + str(col_name))
 
     plt.tight_layout()

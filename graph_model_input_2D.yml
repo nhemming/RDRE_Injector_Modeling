@@ -12,8 +12,10 @@ vary_vars:
     max: 2.0
     min: 0.5
 meta_data:
-  trial_num: 0
   file_name: myModel2DSlice.png
   fig_size: 14,8
+  font_size: 20
   model_num: 3
   sample_density: 20
+  title: MyTitle
+  trial_num: 0
