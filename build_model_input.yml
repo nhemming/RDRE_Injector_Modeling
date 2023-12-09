@@ -20,8 +20,9 @@ data:
       norm_min: 0
 meta_data:
   trial_num: 0
-  file_type: png
+  file_type: .png
   fig_size: 14,8
+  font_size: 20
 model_params:
   kernel:
     ## RBF kernel
