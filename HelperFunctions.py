@@ -51,6 +51,10 @@ def parse_kriging_data_info(input_file_name):
     # extract the meta data
     meta_data = data['meta_data']
 
+    # save input file for self documentation
+    with open(os.path.join('Trial_' + str(meta_data['trial_num']), 'Training_input.yml'), 'w') as outfile:
+        yaml.dump(data, outfile, default_flow_style=False)
+
     # make folders
     create_folders(meta_data)
 
@@ -373,7 +377,19 @@ def graph_error(rmse, mae, avg_std, meta_dict):
 
 
 def parse_graphing_data(file_name):
+    """
+    entry function for loading in the eval data. It loads the model, data, and prepares all of the supporting key values
+    needed for evaluating and graphing a model's response.
 
+    :param file_name: The name of the yaml file that describes what to graph.
+    :return:
+        The prebuilt model
+        Data frame of variables that are held constant.
+        Data frame of variables that are changing. There must be two or one.
+        The data frame that has the input normalization key values.
+        The data frame that has the output normalization values.
+        A dictionary with information about changing the appearance of the graph.
+    """
     # try and open the yml file
     with open(file_name, "r") as stream:
         try:
@@ -396,6 +412,15 @@ def parse_graphing_data(file_name):
 
 
 def parse_graph_constraints(data):
+    """
+    Parses and creates dataframes of the variables held constant and changing for graphing the models output. The data
+    frames hold key information about the desired range of sampling.
+
+    :param data:
+    :return:
+        A data frame with key information about which variables are held constant and to what value.
+        A data frame with key information about which variables are changing and the limits of the variance.
+    """
 
     # parse variables to hold constant
     dict_lst = []
@@ -411,7 +436,7 @@ def parse_graph_constraints(data):
         dict_lst.append(tmp_dict)
 
     if len(dict_lst) > 2:
-        raise ValueError('Only 1 or two variables are allowed to vary while graphing a model')
+        raise ValueError('Only 1 or 2 variables are allowed to vary while graphing a model')
 
     var_vars_df = pd.DataFrame(dict_lst)
 
@@ -419,10 +444,29 @@ def parse_graph_constraints(data):
 
 
 def load_kriging_model(trial_num, model_num):
+    """
+    Load a pre-built kriging model
+
+    :param trial_num: What trial number the model is stored in.
+    :param model_num: What model to use in the trail folder.
+    :return:
+        A pre-trained kriging model.
+    """
     return joblib.load(os.path.join('Trial_'+str(trial_num),'Model_'+str(model_num)+'.pkl'))
 
 
 def graph_model(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+    """
+    Helper function for calling the correct graphing function to visualize the model.
+
+    :param model: The prebuilt model
+    :param constant_vars_df: Data frame of variables that are held constant.
+    :param var_vars_df: Data frame of variables that are changing. There must be two or one.
+    :param input_norm_df: The data frame that has the input normalization key values.
+    :param output_norm_df: The data frame that has the output normalization values.
+    :param meta_data: A dictionary with information about changing the appearance of the graph.
+    :return:
+    """
 
     if len(var_vars_df) == 1:
         graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data)
@@ -433,6 +477,17 @@ def graph_model(model, constant_vars_df, var_vars_df, input_norm_df, output_norm
 
 
 def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+    """
+    Graphs the mean and standard deviation of a model with only one input variable changing.
+
+    :param model: The prebuilt model
+    :param constant_vars_df: Data frame of variables that are held constant.
+    :param var_vars_df: Data frame of variables that are changing. There must be only 1.
+    :param input_norm_df: The data frame that has the input normalization key values.
+    :param output_norm_df: The data frame that has the output normalization values.
+    :param meta_data: A dictionary with information about changing the appearance of the graph.
+    :return:
+    """
 
     # create the sample data
     x_data = np.linspace(var_vars_df['min'].iloc[0], var_vars_df['max'].iloc[0], meta_data['sample_density'])
@@ -491,7 +546,19 @@ def graph_1d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
     file_name = meta_data['file_name']
     plt.savefig(os.path.join('Trial_' + str(meta_data['trial_num']), file_name))
 
+
 def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_norm_df, meta_data):
+    """
+    Creates a contour plot of the mean prediction and standard deviation of the model.
+
+    :param model: The prebuilt model
+    :param constant_vars_df: Data frame of variables that are held constant.
+    :param var_vars_df: Data frame of variables that are changing. There must be two.
+    :param input_norm_df: The data frame that has the input normalization key values.
+    :param output_norm_df: The data frame that has the output normalization values.
+    :param meta_data: A dictionary with information about changing the appearance of the graph.
+    :return:
+    """
 
     # create the sample data
     x_data = np.linspace(var_vars_df['min'].iloc[0],var_vars_df['max'].iloc[0],meta_data['sample_density'])
@@ -565,6 +632,19 @@ def graph_2d_slice(model, constant_vars_df, var_vars_df, input_norm_df, output_n
 
 
 def parse_eval_info(file_name):
+    """
+    Open the yaml file that has the information and direction of evaluation data. The model is loaded, the data
+    normalized, and the normalization key values are prepared.
+
+    :param file_name: The name of the yaml file that has the eval parameters
+    :return:
+        The pre built model.
+        The normalized input testing data
+        The normalized output testing data
+        The data frame that has the input normalization key values.
+        The data frame that has the output normalization values.
+        A dictionary of information for changing the appearance of the graph.
+    """
 
     # try and open the yml file
     with open(file_name, "r") as stream:
@@ -586,7 +666,18 @@ def parse_eval_info(file_name):
 
     return model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data
 
+
 def parse_testing_data(test_file_name, input_norm_df,output_norm_df):
+    """
+    Load and normalize the testing data.
+
+    :param test_file_name: The name of the csv file that has the testing data.
+    :param input_norm_df: The data frame that has the input normalization key values.
+    :param output_norm_df: The data frame that has the output normalization values.
+    :return:
+        The normalized input testing data
+        The normalized output testing data
+    """
 
     # load file
     df = pd.read_csv(test_file_name)
@@ -599,7 +690,21 @@ def parse_testing_data(test_file_name, input_norm_df,output_norm_df):
 
 
 def graph_eval_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data):
+    """
+    Graphs the truth vs. predicted values of a test data set with the model. The graph visually shows the quality
+    of the predictions along with if the model has an over or underprediction bias. The RMSE and MAE are also printed
+    to the screen.
 
+    :param model: The prebuilt model
+    :param input_data_norm: The normalized input testing data.
+    :param output_data_norm: The normalized output testing data
+    :param input_norm_df: The data frame that has the input normalization key values.
+    :param output_norm_df: The data frame that has the output normalization values.
+    :param meta_data: A dictionary of data used to alter the appearance of the graph.
+    :return:
+    """
+
+    # make a prediction over the testing data set.
     mean, std = model.predict(input_data_norm, return_std=True)
 
     # un normalize output
@@ -634,6 +739,7 @@ def graph_eval_error(model, input_data_norm, output_data_norm, input_norm_df, ou
 
     print('RMSE = {:5f}\tMAE = {:5f}'.format(rmse, mae))
 
+    # graph the results of the prediction
     sns.set_theme()
     plt.rcParams.update({'font.size': meta_data['font_size']})
     fig_size = meta_data['fig_size'].split(',')
@@ -649,6 +755,7 @@ def graph_eval_error(model, input_data_norm, output_data_norm, input_norm_df, ou
     plt.tight_layout()
     file_name = meta_data['file_name']
     plt.savefig(os.path.join('Trial_' + str(meta_data['trial_num']), file_name))
+
 
 if __name__ == '__main__':
 

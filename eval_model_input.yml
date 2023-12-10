@@ -5,6 +5,5 @@ meta_data:
   fig_size: 8,5
   font_size: 20
   model_num: 3
-  sample_density: 20
   title: MyTitle
   trial_num: 0
