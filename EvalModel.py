@@ -10,5 +10,5 @@ if __name__ == '__main__':
 
     model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data = hf.parse_eval_info(file_name)
 
-    hf.graph_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data)
+    hf.graph_eval_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data)
 

@@ -598,7 +598,7 @@ def parse_testing_data(test_file_name, input_norm_df,output_norm_df):
     return input_data_norm, output_data_norm
 
 
-def graph_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data):
+def graph_eval_error(model, input_data_norm, output_data_norm, input_norm_df, output_norm_df, meta_data):
 
     mean, std = model.predict(input_data_norm, return_std=True)
 
